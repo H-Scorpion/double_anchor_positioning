@@ -6,12 +6,15 @@ from math import sin, cos, pi
 from collections import deque
 from utility import uwbPassOutlierDetector, normalizeAngle
 from speedEstimator import speedEstimator
+from speedEstimator_vz import speedEstimator_vz
 
 
 
 class tracker():
     def __init__(self,lineMovingThreshold=0.1,ElevMovingThreshold=0.1):
-        self.speedEstimator = speedEstimator()
+        self.speedEstimator0 = speedEstimator()
+        self.speedEstimator1 = speedEstimator()
+        self.speedEstimator_vz = speedEstimator_vz()
         self.ekf = customizedEKF()
         self.accData = deque(maxlen=100)
         self.staticThreshold = 0.01
@@ -22,7 +25,8 @@ class tracker():
         self.curPitch = 0.
         self.measUpdateTime = 0.
         self.newMeasHeading = 0.
-        self.newMeasRange = 0.
+        self.newMeasRange0 = 0.
+        self.newMeasRange1 = 0.
         self.newMeasPitch = 0.
         self.histRange = deque(maxlen=20)
         self.withSpeedEstimator = True
@@ -57,8 +61,12 @@ class tracker():
         else:
             return False
 
-    def update_sim_measurement_range(self, rangeMeas, time):
-        self.newMeasRange = rangeMeas
+    def update_sim_measurement_range0(self, rangeMeas, time):
+        self.newMeasRange0 = rangeMeas
+        self.rangeMeasUpdated = True
+        self.measUpdateTime = time
+    def update_sim_measurement_range1(self, rangeMeas, time):
+        self.newMeasRange1 = rangeMeas
         self.rangeMeasUpdated = True
         self.measUpdateTime = time
 
@@ -78,7 +86,8 @@ class tracker():
         else:
             self.curHeading = self.newMeasHeading
             self.curPitch = self.newMeasPitch
-            self.speedEstimator.keyMeasPairs.clear()
+            self.speedEstimator0.keyMeasPairs.clear()
+            self.speedEstimator1.keyMeasPairs.clear()
             return False
 
     def real_step(self,measurement):
@@ -87,33 +96,58 @@ class tracker():
         timeStamp = measurement[2]
         acc = measurement[3]
         if self.get_valid_measurement_range(rangemeas, timeStamp):
-            self.speedEstimator.estimate_speed(measurement[0], timeStamp, self.speedIinterval)
+            self.speedEstimator0.estimate_speed(measurement[0], timeStamp, self.speedIinterval)
+            self.speedEstimator1.estimate_speed(measurement[0], timeStamp, self.speedIinterval)
         self.update_heading_measurement(headmeas,timeStamp)
         if self.check_static(acc):
             self.ekf.x[3] = 0
-            self.speedEstimator.keyMeasPairs = []
+            self.speedEstimator0.keyMeasPairs = []
+            self.speedEstimator1.keyMeasPairs = []
         else:
             self.ekf.ekfStep([self.newMeasRange, self.newMeasHeading])
             if self.withSpeedEstimator:
-                if self.speedEstimator.validSpeedUpdated:
-                    estimatedVel = self.speedEstimator.get_vel()
-                    self.ekf.x[3] = 0.5*self.ekf.x[3] + 0.5*estimatedVel
+                if self.newMeasRange0 <= self.newMeasRange1:
+                    if self.speedEstimator0.validSpeedUpdated:
+                        estimatedVel = self.speedEstimator0.get_vel()
+                        self.ekf.x[3] = 0.5*self.ekf.x[3] + 0.5*estimatedVel
+                else:
+                    if self.speedEstimator1.validSpeedUpdated:
+                        estimatedVel = self.speedEstimator1.get_vel()
+                        self.ekf.x[3] = 0.5*self.ekf.x[3] + 0.5*estimatedVel
+
             self.ekf.records()
 
     def sim_step(self, measurement):
-        rangemeas = measurement[0]
-        headmeas = measurement[1]
-        pitchmeas = measurement[2]
+        rangemeas0 = measurement[0]
+        rangemeas1 = measurement[1]
+        headmeas = measurement[2]
         timeStamp = measurement[3]
-        self.update_sim_measurement_range(rangemeas,timeStamp)
-        self.speedEstimator.estimate_speed(rangemeas, timeStamp, self.speedIinterval)
+        self.update_sim_measurement_range0(rangemeas0,timeStamp)
+        self.update_sim_measurement_range1(rangemeas1,timeStamp)
+        self.speedEstimator0.estimate_speed(rangemeas0, timeStamp, self.speedIinterval)
+        self.speedEstimator1.estimate_speed(rangemeas1, timeStamp, self.speedIinterval)
+        self.speedEstimator_vz.estimate_speed(rangemeas0 ,rangemeas1, timeStamp, self.speedIinterval)
         self.update_heading_measurement(headmeas,timeStamp)
-        self.update_pitch_measurement(pitchmeas,timeStamp)
-
-        self.ekf.ekfStep([self.newMeasRange, self.newMeasHeading, self.newMeasPitch])
-        if self.withSpeedEstimator and self.linear_motion_check() and self.speedEstimator.validSpeedUpdated:
-            estimatedVel = self.speedEstimator.get_vel()
-            self.ekf.x[5] = 0.5*self.ekf.x[5] + 0.5*estimatedVel
+       
+        if self.newMeasRange0<=self.newMeasRange1:
+            vz = self.speedEstimator_vz.get_vel()
+            v = self.speedEstimator0.get_vel()
+            self.newMeasPitch =  normalizeAngle(np.degrees(np.arcsin(vz/v)))
+        else:
+            vz = self.speedEstimator_vz.get_vel()
+            v = self.speedEstimator1.get_vel()
+            self.newMeasPitch =  normalizeAngle(np.degrees(np.arcsin(vz/v)))
+        
+        
+        self.ekf.ekfStep([self.newMeasRange0,self.newMeasRange1, self.newMeasHeading, self.newMeasPitch, self.speedEstimator_vz.last_z])
+        if self.newMeasRange0<=self.newMeasRange1:
+            if self.withSpeedEstimator0 and self.linear_motion_check() and self.speedEstimator.validSpeedUpdated:
+                estimatedVel = self.speedEstimator0.get_vel()
+                self.ekf.x[5] = 0.5*self.ekf.x[5] + 0.5*estimatedVel
+        else:
+            if self.withSpeedEstimator1 and self.linear_motion_check() and self.speedEstimator.validSpeedUpdated:
+                estimatedVel = self.speedEstimator1.get_vel()
+                self.ekf.x[5] = 0.5*self.ekf.x[5] + 0.5*estimatedVel
         self.ekf.records()
 
 
@@ -126,14 +160,15 @@ class tracker():
 
 class customizedEKF(ExtendedKalmanFilter):
     
-    def __init__(self, dim_x=6, dim_z=3):
+    def __init__(self, dim_x=6, dim_z=5):
         super(customizedEKF, self).__init__(dim_x, dim_z)
         self.dt = 0.005
         self.recordState = []
         self.recordResidual = []
         self.recordP = []
-        self.anchor = (0,0,0)
-
+        self.anchor0 = (0,0,0)
+        self.anchor1 = (0,0,10)
+ 
     def set_covs(self, covS_X, covS_Y, covS_Z, covS_Ori, covS_Pitch, covS_LVel, covM_Range, covM_Ori, covM_Pitch):
         self.Q = np.array([ [covS_X, 0., 0., 0., 0., 0.],
                             [0., covS_Y, 0., 0., 0., 0.],
@@ -142,9 +177,11 @@ class customizedEKF(ExtendedKalmanFilter):
                             [0., 0., 0, 0., covS_Pitch, 0.],
                             [0., 0., 0., 0., 0.,covS_LVel,]])
 
-        self.R = np.array([[covM_Range, 0., 0.],
-                               [0, covM_Ori, 0.],
-                               [0, 0., covM_Pitch],])
+        self.R = np.array([[covM_Range, 0., 0., 0., 0.],
+                                [0, covM_Range, 0., 0., 0.],
+                                [0, 0., covM_Ori, 0., 0.],
+                                [0, 0., 0., covM_Pitch, 0.],
+                                [0, 0., 0., 0., 0.1]])
 
     def set_initial_state(self, initialState):
         self.x = initialState
@@ -208,14 +245,21 @@ class customizedEKF(ExtendedKalmanFilter):
         dr_dx = self.x[0] / xnorm
         dr_dy = self.x[1] / xnorm
         dr_dz = self.x[2] / xnorm
+        xnorm1 =  np.linalg.norm([self.x[0], self.x[1], self.x[2]-10])
+        dr1_dx = self.x[0]/xnorm1
+        dr1_dy = self.x[1]/xnorm1
+        dr1_dz = (self.x[2]-self.anchor1[2])/xnorm1
         Hjac = np.array([[dr_dx, dr_dy, dr_dz, 0, 0, 0],
+                         [dr1_dx, dr1_dy, dr1_dz, 0, 0, 0],
                          [0., 0., 0., 1., 0., 0],
-                         [0., 0., 0., 0., 1., 0],])
+                         [0., 0., 0., 0., 1., 0],
+                         [0., 0., 1., 0., 0., 0]])
         return Hjac
 
     def H_state(self, s):
-        xnorm = np.linalg.norm([self.x[0], self.x[1], self.x[2]])
-        h_x = np.array([xnorm, self.x[3], self.x[4]])
+        xnorm0 = np.linalg.norm([self.x[0], self.x[1], self.x[2]])
+        xnorm1 = np.linalg.norm([self.x[0], self.x[1], self.x[2]-self.anchor1[2]])
+        h_x = np.array([xnorm0,xnorm1, self.x[3], self.x[4], self.x[2]])
         return h_x
 
     def ekfStep(self, measurement):
@@ -226,7 +270,7 @@ class customizedEKF(ExtendedKalmanFilter):
         self.update(measurement, self.H_Jac, self.H_state, residual=self.residualWithAng)
 
     def records(self):
-        state = [self.x[0] + self.anchor[0], self.x[1] + self.anchor[1], self.x[2]+ self.anchor[2], self.x[3], self.x[4],self.x[5]]
+        state = [self.x[0] + self.anchor0[0], self.x[1] + self.anchor0[1], self.x[2]+ self.anchor0[2], self.x[3], self.x[4],self.x[5]]
         self.recordState.append(state)
         self.recordP.append(self.P)
         self.recordResidual.append(self.y)
