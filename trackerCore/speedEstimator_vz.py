@@ -28,6 +28,8 @@ class speedEstimator_vz():
         self.L = 10
         self.last_z  = 0
         self.zMeasPairs = deque(maxlen=80)
+        self.initialized()
+    
 
     def vel_from_dis(self, l_0, l_1, l_2, t0, t1, t2):
         t_1 = t1 - t0
@@ -63,8 +65,8 @@ class speedEstimator_vz():
         return output
     
     def cal_z(self, range,time):
-        z = np.sqrt(np.abs((self.L**2+range[0]**2-range[1]**2)/(2*self.L)))
-
+        z = (self.L**2+range[0]**2-range[1]**2)/(2*self.L)
+        # print(range,z)
         if abs(z-self.last_z) > self.distanceThreshold:
             self.last_z = z
             self.zMeasPairs.append([z, time])
@@ -78,13 +80,14 @@ class speedEstimator_vz():
 
     def estimate_speed(self, range0, range1, time, interval):
         fdragne = self.filter_range(range0, range1)
-        self.speedWindowSize = 5+ 0.1*fdragne        
+        self.speedWindowSize = 5+ 0.1*fdragne[0]        
         if self.cal_z(fdragne, time) and len(self.zMeasPairs) >= 2*interval:
             tempresult = self.vz_from_z(self.zMeasPairs[-2*interval][0], 
                                            self.zMeasPairs[-1][0], self.zMeasPairs[-2*interval][1],
                                             self.zMeasPairs[-1][1])
 
             self.speedWindow.append(tempresult)
+            # print(len(self.speedWindow))
             if len(self.speedWindow)>(self.speedWindowSize-1):
                 self.curSpeed = np.median(self.speedWindow)  # Estimation of this linear motion speed
                 #self.curSpeed = self.swfilter_timedata(self.speedWindow, len(self.speedWindow), 1)
@@ -104,9 +107,11 @@ class speedEstimator_vz():
             self.rangeKF.x = np.array([range0, range1])
             self.filtedRange.append(np.array([range0, range1]))
             self.rangeKF.initialized = True
+            # print("kf initialized")
+            # print(self.rangeKF.F.shape)
         else:
             self.rangeKF.predict()
-            self.rangeKF.update(range0, range1)
+            self.rangeKF.update(np.array([range0, range1]))
             self.filtedRange.append(self.rangeKF.x)
         return self.filtedRange[-1]
 

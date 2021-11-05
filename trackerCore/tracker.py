@@ -129,23 +129,27 @@ class tracker():
         self.speedEstimator_vz.estimate_speed(rangemeas0 ,rangemeas1, timeStamp, self.speedIinterval)
         self.update_heading_measurement(headmeas,timeStamp)
        
-        if self.newMeasRange0<=self.newMeasRange1:
-            vz = self.speedEstimator_vz.get_vel()
-            v = self.speedEstimator0.get_vel()
-            self.newMeasPitch =  normalizeAngle(np.degrees(np.arcsin(vz/v)))
-        else:
-            vz = self.speedEstimator_vz.get_vel()
-            v = self.speedEstimator1.get_vel()
-            self.newMeasPitch =  normalizeAngle(np.degrees(np.arcsin(vz/v)))
+        # if self.newMeasRange0<=self.newMeasRange1:
+        #     vz = self.speedEstimator_vz.get_vel()
+        #     v = self.speedEstimator0.get_vel()
+        #     print("vz:",vz)
+        #     print("v:",v)
+        #     self.newMeasPitch =  normalizeAngle(np.degrees(np.arcsin(vz/(v+1e-12))))
+        # else:
+        #     vz = self.speedEstimator_vz.get_vel()
+        #     v = self.speedEstimator1.get_vel()
+        #     print("vz:",vz)
+        #     print("v:",v)
+        #     self.newMeasPitch =  normalizeAngle(np.degrees(np.arcsin(vz/(v+1e-12))))
         
-        
-        self.ekf.ekfStep([self.newMeasRange0,self.newMeasRange1, self.newMeasHeading, self.newMeasPitch, self.speedEstimator_vz.last_z])
+        # print(self.speedEstimator_vz.last_z)
+        self.ekf.ekfStep([self.newMeasRange0,self.newMeasRange1, self.newMeasHeading,  self.speedEstimator_vz.last_z])
         if self.newMeasRange0<=self.newMeasRange1:
-            if self.withSpeedEstimator0 and self.linear_motion_check() and self.speedEstimator.validSpeedUpdated:
+            if self.withSpeedEstimator and self.linear_motion_check() and self.speedEstimator0.validSpeedUpdated:
                 estimatedVel = self.speedEstimator0.get_vel()
                 self.ekf.x[5] = 0.5*self.ekf.x[5] + 0.5*estimatedVel
         else:
-            if self.withSpeedEstimator1 and self.linear_motion_check() and self.speedEstimator.validSpeedUpdated:
+            if self.withSpeedEstimator and self.linear_motion_check() and self.speedEstimator1.validSpeedUpdated:
                 estimatedVel = self.speedEstimator1.get_vel()
                 self.ekf.x[5] = 0.5*self.ekf.x[5] + 0.5*estimatedVel
         self.ekf.records()
@@ -160,7 +164,7 @@ class tracker():
 
 class customizedEKF(ExtendedKalmanFilter):
     
-    def __init__(self, dim_x=6, dim_z=5):
+    def __init__(self, dim_x=6, dim_z=4):
         super(customizedEKF, self).__init__(dim_x, dim_z)
         self.dt = 0.005
         self.recordState = []
@@ -177,11 +181,10 @@ class customizedEKF(ExtendedKalmanFilter):
                             [0., 0., 0, 0., covS_Pitch, 0.],
                             [0., 0., 0., 0., 0.,covS_LVel,]])
 
-        self.R = np.array([[covM_Range, 0., 0., 0., 0.],
-                                [0, covM_Range, 0., 0., 0.],
-                                [0, 0., covM_Ori, 0., 0.],
-                                [0, 0., 0., covM_Pitch, 0.],
-                                [0, 0., 0., 0., 0.1]])
+        self.R = np.array([[covM_Range, 0., 0., 0.,],
+                                [0, covM_Range, 0., 0., ],
+                                [0, 0., covM_Ori, 0.,],                               
+                                [0, 0., 0., 0.01]])
 
     def set_initial_state(self, initialState):
         self.x = initialState
@@ -249,17 +252,16 @@ class customizedEKF(ExtendedKalmanFilter):
         dr1_dx = self.x[0]/xnorm1
         dr1_dy = self.x[1]/xnorm1
         dr1_dz = (self.x[2]-self.anchor1[2])/xnorm1
-        Hjac = np.array([[dr_dx, dr_dy, dr_dz, 0, 0, 0],
-                         [dr1_dx, dr1_dy, dr1_dz, 0, 0, 0],
-                         [0., 0., 0., 1., 0., 0],
-                         [0., 0., 0., 0., 1., 0],
-                         [0., 0., 1., 0., 0., 0]])
+        Hjac = np.array([[dr_dx, dr_dy, dr_dz, 0,0,  0],
+                         [dr1_dx, dr1_dy, dr1_dz, 0,0,  0],
+                         [0., 0., 0., 1.,0, 0],
+                         [0., 0., 1., 0.,0, 0]])
         return Hjac
 
     def H_state(self, s):
         xnorm0 = np.linalg.norm([self.x[0], self.x[1], self.x[2]])
         xnorm1 = np.linalg.norm([self.x[0], self.x[1], self.x[2]-self.anchor1[2]])
-        h_x = np.array([xnorm0,xnorm1, self.x[3], self.x[4], self.x[2]])
+        h_x = np.array([xnorm0,xnorm1, self.x[3], self.x[2]])
         return h_x
 
     def ekfStep(self, measurement):

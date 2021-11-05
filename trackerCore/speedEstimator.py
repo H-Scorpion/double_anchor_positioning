@@ -25,6 +25,8 @@ class speedEstimator():
         self.rangeKF.R = 0.1
         self.rangeKF.Q = 0.001
         self.rangeKF.initialized = False
+        self.initialized()
+
 
     def vel_from_dis(self, l_0, l_1, l_2, t0, t1, t2):
         t_1 = t1 - t0

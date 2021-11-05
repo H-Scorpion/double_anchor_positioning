@@ -40,8 +40,10 @@ class sim():
         self.vZ = [0.]
         self.refBearing = [0.0, ]
         self.bearing = [0.0, ]
-        self.uwb = [np.linalg.norm([self.x[0], self.y[0]])]
-        self.uwbNoisy = [np.linalg.norm([self.x[0], self.y[0]])]
+        self.uwb0 = [np.linalg.norm([self.x[0], self.y[0], self.z[0]])]
+        self.uwbNoisy0 = [np.linalg.norm([self.x[0], self.y[0], self.z[0]])]
+        self.uwb1 = [np.linalg.norm([self.x[0], self.y[0], self.z[0]-10])]
+        self.uwbNoisy1 = [np.linalg.norm([self.x[0], self.y[0],self.z[0]-10])]
         self.yaw = [normalizeAngle(pi / 2 + self.aVel[0] * self.dt), ]
         self.yawNoisy = [normalizeAngle(pi / 2 + self.aVel[0] * self.dt),]
         self.pitch = [normalizeAngle(self.eleVel[0] * self.dt), ]
@@ -60,6 +62,7 @@ class sim():
         self.doDynamics = False
         self.notSetStep = True
         self.notSetPeriod = True
+        self.anchor1 = (0,0,10)
 
     def generate_sim_root(self):
         self.targetLV = [0.]
@@ -121,7 +124,7 @@ class sim():
             self.eleVel.append(elev)
 
             yaw_now = normalizeAngle(self.yaw[step] + av * self.dt)
-            yaw_noisy = yaw_now + np.random.normal(0, 0.01) #0.01
+            yaw_noisy = yaw_now #+ np.random.normal(0, 0.01) #0.01
 
             pitch_now = normalizeAngle(self.pitch[step] + elev * self.dt)
             pitchNoisy = pitch_now + np.random.normal(0, 0.01)
@@ -148,13 +151,15 @@ class sim():
             bearing = normalizeAngle(pi - yaw_now + ref_bearing)
             self.bearing.append(bearing)
 
-            range_meas = np.linalg.norm([self.x[step], self.y[step], self.z[step]])
-            self.uwb.append(range_meas)
-            if  range_meas > 40 :
-                range_noisy = range_meas + np.random.normal(0, 0.2)
-            else:
-                range_noisy = range_meas + np.random.normal(0, 0.2) #0.005
-            self.uwbNoisy.append(range_noisy)
+            range_meas0 = np.linalg.norm([self.x[step], self.y[step], self.z[step]])
+            range_meas1 = np.linalg.norm([self.x[step], self.y[step], self.z[step]-self.anchor1[2]])
+            self.uwb0.append(range_meas0)
+            self.uwb1.append(range_meas1)
+
+            range_noisy0 = range_meas0 + np.random.normal(0, 0.05) #0.005
+            range_noisy1 = range_meas1 + np.random.normal(0, 0.05) #0.005
+            self.uwbNoisy0.append(range_noisy0)
+            self.uwbNoisy1.append(range_noisy1)
 
             
     def plot_sim(self):
@@ -169,6 +174,7 @@ class sim():
             #plt.annotate(('%d ,%.2f' % (step,r)), (self.x[step], self.y[step]))
         #ax.axis('equal')
         ax.scatter(0., 0., 0., marker='^', color='r', s=20)
+        ax.scatter(0., 0., self.anchor1[2] , marker='^', color='r', s=20)
         plt.savefig(curPath+"/result_cache/groundTruthTrajectory.svg")
 
         fig, ax1 = plt.subplots(figsize=(20, 10))
@@ -181,7 +187,8 @@ class sim():
         ax1.plot(self.lVel, label=" Linear Vel ")
 
         ax2 = ax1.twinx()  # instantiate a second axes that shares the same x-axis
-        ax2.plot(self.uwb, color='c', label=" simUwb ")
+        ax2.plot(self.uwb0, color='c', label=" simUwb0 ")
+        ax2.plot(self.uwb1, color='c', label=" simUwb1 ")
         ax2.set_ylabel('UWB range')
         fig.legend()
         fig.savefig(curPath+"/result_cache/groundTruthInfo.svg")
@@ -189,8 +196,11 @@ class sim():
         fig, ax1 = plt.subplots(figsize=(20, 10))
         ax1.set_xlabel('time (s)')
         ax1.set_ylabel('Range')
-        ax1.plot(self.uwbNoisy, label=" Noisy Range")
-        ax1.plot(self.uwb, label="True Range")
+        ax1.plot(self.uwbNoisy0, label=" Noisy Range0")
+        ax1.plot(self.uwb0, label="True Range0")
+        ax1.plot(self.uwbNoisy1, label=" Noisy Range1")
+        ax1.plot(self.uwb1, label="True Range1")
+        fig.legend()
         fig.savefig(curPath+"/result_cache/groundTruthRange.svg")
 
 if __name__ == '__main__':

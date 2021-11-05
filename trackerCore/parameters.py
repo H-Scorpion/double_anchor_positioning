@@ -16,6 +16,6 @@ covM_Ori = 0.01
 covM_Pitch = 0.01
 
 # Set initial state of the EKF
-initialState = [10., 0., 0., 0., 0., 0.0] 
+initialState = [10., 0., 0., 2., 0., 0.0] 
 
-seed = 102
+seed = 886

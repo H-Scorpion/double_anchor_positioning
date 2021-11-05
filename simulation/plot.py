@@ -16,16 +16,16 @@ import plotly.graph_objs as go
 import plotly
 
 
-def plot_trajectory(sim, ref_ekf, my_ekf, anchor_ekf,name='',anchor_x=[], anchor_y=[], anchor_z=[]):
+def plot_trajectory(sim, my_ekf,name=''):
     posXRef, posYRef, posZRef, orientationRef, pitchRef, linVelRef, posX, posY, posZ, orientation, pitch, linVel = ([] for _ in range(12))
     anchor_posX, anchor_posY, anchor_posZ, anchor_orientation, anchor_pitch, anchor_linVel = ([] for _ in range(6))
-    for idx in range(len(ref_ekf.ekf.recordState)):
-        posXRef.append(ref_ekf.ekf.recordState[idx][0])
-        posYRef.append(ref_ekf.ekf.recordState[idx][1])
-        posZRef.append(ref_ekf.ekf.recordState[idx][2])
-        orientationRef.append(ref_ekf.ekf.recordState[idx][3])
-        pitchRef.append(ref_ekf.ekf.recordState[idx][4])
-        linVelRef.append(ref_ekf.ekf.recordState[idx][5])
+    # for idx in range(len(ref_ekf.ekf.recordState)):
+    #     posXRef.append(ref_ekf.ekf.recordState[idx][0])
+    #     posYRef.append(ref_ekf.ekf.recordState[idx][1])
+    #     posZRef.append(ref_ekf.ekf.recordState[idx][2])
+    #     orientationRef.append(ref_ekf.ekf.recordState[idx][3])
+    #     pitchRef.append(ref_ekf.ekf.recordState[idx][4])
+    #     linVelRef.append(ref_ekf.ekf.recordState[idx][5])
 
     for idx in range(len(my_ekf.ekf.recordState)):
         posX.append(my_ekf.ekf.recordState[idx][0])
@@ -35,32 +35,33 @@ def plot_trajectory(sim, ref_ekf, my_ekf, anchor_ekf,name='',anchor_x=[], anchor
         pitch.append(my_ekf.ekf.recordState[idx][4])
         linVel.append(my_ekf.ekf.recordState[idx][5])
 
-    for idx in range(len(anchor_ekf.ekf.recordState)):
-        anchor_posX.append(anchor_ekf.ekf.recordState[idx][0])
-        anchor_posY.append(anchor_ekf.ekf.recordState[idx][1])
-        anchor_posZ.append(anchor_ekf.ekf.recordState[idx][2])
-        anchor_orientation.append(anchor_ekf.ekf.recordState[idx][3])
-        anchor_pitch.append(anchor_ekf.ekf.recordState[idx][4])
-        anchor_linVel.append(anchor_ekf.ekf.recordState[idx][5])
+    # for idx in range(len(anchor_ekf.ekf.recordState)):
+    #     anchor_posX.append(anchor_ekf.ekf.recordState[idx][0])
+    #     anchor_posY.append(anchor_ekf.ekf.recordState[idx][1])
+    #     anchor_posZ.append(anchor_ekf.ekf.recordState[idx][2])
+    #     anchor_orientation.append(anchor_ekf.ekf.recordState[idx][3])
+    #     anchor_pitch.append(anchor_ekf.ekf.recordState[idx][4])
+    #     anchor_linVel.append(anchor_ekf.ekf.recordState[idx][5])
 
     fig = plt.figure(figsize=(7, 7))
     #colors = plt.cm.rainbow(np.linspace(0, 1, len(posX)))
     ax = fig.gca(projection='3d')
     ax.force_zorder = True
     ax.scatter(sim.x, sim.y, sim.z, s=5, c='black', label="Ground Truth",zorder=1)
-    ax.scatter(posXRef, posYRef, posZRef, s=2, c='red', label="EKF without RVE",zorder=2)
+    # ax.scatter(posXRef, posYRef, posZRef, s=2, c='red', label="EKF without RVE",zorder=2)
     ax.scatter(posX, posY, posZ, s=2, c='green', label="Proposed Method",zorder=3)
-    ax.scatter(anchor_posX, anchor_posY, anchor_posZ, s=2, c='yellow', label="Anchor Method",zorder=4)
-    ax.scatter(0.,0.,0., marker = '^', s=100, c='black', label="Anchor" ,zorder=5)
-    blue_patch = ax.scatter(anchor_x,anchor_y,anchor_z, marker = '^', s=100, c='b', label="new Anchor", zorder=6)
+    # ax.scatter(anchor_posX, anchor_posY, anchor_posZ, s=2, c='yellow', label="Anchor Method",zorder=4)
+    ax.scatter(0.,0.,0., marker = '^', s=100, c='black', label="Anchor0" ,zorder=5)
+    ax.scatter(0.,0.,sim.anchor1[2] , marker = '^', s=100, c='black', label="Anchor1" ,zorder=5)
+    # blue_patch = ax.scatter(anchor_x,anchor_y,anchor_z, marker = '^', s=100, c='b', label="new Anchor", zorder=6)
 
 
 
     black_patch = mpatches.Patch(color='black', label="Ground truth")
-    red_patch = mpatches.Patch(color='red', label="Without speed estimator")
+    # red_patch = mpatches.Patch(color='red', label="Without speed estimator")
     green_patch = mpatches.Patch(color='green', label="With speed estimator")
-    yellow_patch = mpatches.Patch(color='yellow', label="With speed estimator and hand over")
-    ax.legend(handles=[black_patch, red_patch, green_patch, yellow_patch, blue_patch])
+    # yellow_patch = mpatches.Patch(color='yellow', label="With speed estimator and hand over")
+    ax.legend(handles=[black_patch,  green_patch])
     ax.set_xlabel('X (m)')
     ax.set_ylabel('Y (m)')
     ax.set_zlabel('Z (m)')
@@ -75,7 +76,7 @@ def plot_trajectory(sim, ref_ekf, my_ekf, anchor_ekf,name='',anchor_x=[], anchor
     ax1.set_ylabel('Orientation/ aVel/ lVel')
     #ax1.plot(orientationRef, label="Ref Yaw")
     ax1.plot(orientation, label=" Yaw ")
-    #plt.show()
+    plt.show()
 
     #print('ax.azim {}'.format(ax.azim))
     #print('ax.elev {}'.format(ax.elev))
@@ -84,18 +85,18 @@ def plot_trajectory(sim, ref_ekf, my_ekf, anchor_ekf,name='',anchor_x=[], anchor
 
 
 
-def plot_anchor_info(sim, ref_ekf, my_ekf, anchor_ekf,name='',anchor_x=[], anchor_y=[], record_switch_hand_step=[]):
+def plot_anchor_info(sim,  my_ekf, name=''):
 
     posXRef, posYRef, posZRef, orientationRef, pitchRef, linVelRef, posX, posY, posZ, orientation, pitch, linVel = ([] for _ in range(12))
     anchor_posX, anchor_posY, anchor_posZ, anchor_orientation, anchor_pitch, anchor_linVel = ([] for _ in range(6))
     filtedRange = []
-    for idx in range(len(ref_ekf.ekf.recordState)):
-        posXRef.append(ref_ekf.ekf.recordState[idx][0])
-        posYRef.append(ref_ekf.ekf.recordState[idx][1])
-        posZRef.append(ref_ekf.ekf.recordState[idx][2])
-        orientationRef.append(ref_ekf.ekf.recordState[idx][3])
-        pitchRef.append(ref_ekf.ekf.recordState[idx][4])
-        linVelRef.append(ref_ekf.ekf.recordState[idx][5])
+    # for idx in range(len(ref_ekf.ekf.recordState)):
+    #     posXRef.append(ref_ekf.ekf.recordState[idx][0])
+    #     posYRef.append(ref_ekf.ekf.recordState[idx][1])
+    #     posZRef.append(ref_ekf.ekf.recordState[idx][2])
+    #     orientationRef.append(ref_ekf.ekf.recordState[idx][3])
+    #     pitchRef.append(ref_ekf.ekf.recordState[idx][4])
+    #     linVelRef.append(ref_ekf.ekf.recordState[idx][5])
 
     for idx in range(len(my_ekf.ekf.recordState)):
         posX.append(my_ekf.ekf.recordState[idx][0])
@@ -105,17 +106,17 @@ def plot_anchor_info(sim, ref_ekf, my_ekf, anchor_ekf,name='',anchor_x=[], ancho
         pitch.append(my_ekf.ekf.recordState[idx][4])
         linVel.append(my_ekf.ekf.recordState[idx][5])
 
-    for idx in range(len(anchor_ekf.ekf.recordState)):
-        anchor_posX.append(anchor_ekf.ekf.recordState[idx][0])
-        anchor_posY.append(anchor_ekf.ekf.recordState[idx][1])
-        anchor_posZ.append(anchor_ekf.ekf.recordState[idx][2])
-        anchor_orientation.append(anchor_ekf.ekf.recordState[idx][3])
-        anchor_pitch.append(anchor_ekf.ekf.recordState[idx][4])
-        anchor_linVel.append(anchor_ekf.ekf.recordState[idx][5])
+    # for idx in range(len(anchor_ekf.ekf.recordState)):
+    #     anchor_posX.append(anchor_ekf.ekf.recordState[idx][0])
+    #     anchor_posY.append(anchor_ekf.ekf.recordState[idx][1])
+    #     anchor_posZ.append(anchor_ekf.ekf.recordState[idx][2])
+    #     anchor_orientation.append(anchor_ekf.ekf.recordState[idx][3])
+    #     anchor_pitch.append(anchor_ekf.ekf.recordState[idx][4])
+    #     anchor_linVel.append(anchor_ekf.ekf.recordState[idx][5])
     
     
 
-    for idx in range(len(anchor_ekf.ekf.recordState)):
+    for idx in range(sim.dataSize):
         filtedRange.append(np.linalg.norm([sim.x[idx],sim.y[idx],sim.z[idx]]))
 
     fig, ax1 = plt.subplots(figsize=(9, 4.5))
@@ -123,17 +124,17 @@ def plot_anchor_info(sim, ref_ekf, my_ekf, anchor_ekf,name='',anchor_x=[], ancho
     ax1.set_ylabel('Linear Velocity(m/s)')
     #ax1.plot(orientation, label="orientation")
     ax1.plot(sim.lVel,c='black', label=" GT Linear Vel ")
-    ax1.plot(linVelRef,c='red', label=" Vanilla EKF Linear Vel. ")
+    # ax1.plot(linVelRef,c='red', label=" Vanilla EKF Linear Vel. ")
     ax1.plot(linVel, c='green',label=" Proposed Method Linear Vel. ")
-    ax1.plot(anchor_linVel, c='Yellow',label=" Anchor Method Linear Vel. ")
+    # ax1.plot(anchor_linVel, c='Yellow',label=" Anchor Method Linear Vel. ")
 
     #for idx in range(len(record_switch_hand_step)):
     #    plt.vlines(record_switch_hand_step[idx],0,10,color="green")
     black_patch = mpatches.Patch(color='black', label="Ground truth")
-    red_patch = mpatches.Patch(color='red', label="Without speed estimator")
+    # red_patch = mpatches.Patch(color='red', label="Without speed estimator")
     green_patch = mpatches.Patch(color='green', label="With speed estimator")
-    yellow_patch = mpatches.Patch(color='yellow', label="Anchor with speed estimator")
-    ax1.legend(loc='upper left', handles=[black_patch, red_patch, green_patch, yellow_patch])
+    # yellow_patch = mpatches.Patch(color='yellow', label="Anchor with speed estimator")
+    ax1.legend(loc='upper left', handles=[black_patch,  green_patch])
 
     ax2 = ax1.twinx()  # instantiate a second axes that shares the same x-axis
     #ax2.plot(uwbInput, color='c', label=" Range Measurement ")
@@ -146,15 +147,15 @@ def plot_anchor_info(sim, ref_ekf, my_ekf, anchor_ekf,name='',anchor_x=[], ancho
     plt.savefig(savePath+"%ssim_result_info.png" % name, bbox_inches='tight', dpi=600)
 
 
-def plot_sim(sim, ref_ekf, my_ekf,name=''):
+def plot_sim(sim,  my_ekf,name=''):
 
     posXRef, posYRef, orientationRef, linVelRef, posX, posY, orientation, linVel = ([] for _ in range(8))
 
-    for idx in range(len(ref_ekf.ekf.recordState)):
-        posXRef.append(ref_ekf.ekf.recordState[idx][0])
-        posYRef.append(ref_ekf.ekf.recordState[idx][1])
-        orientationRef.append(ref_ekf.ekf.recordState[idx][2])
-        linVelRef.append(ref_ekf.ekf.recordState[idx][3])
+    # for idx in range(len(ref_ekf.ekf.recordState)):
+    #     posXRef.append(ref_ekf.ekf.recordState[idx][0])
+    #     posYRef.append(ref_ekf.ekf.recordState[idx][1])
+    #     orientationRef.append(ref_ekf.ekf.recordState[idx][2])
+    #     linVelRef.append(ref_ekf.ekf.recordState[idx][3])
 
     for idx in range(len(my_ekf.ekf.recordState)):
         posX.append(my_ekf.ekf.recordState[idx][0])
@@ -165,20 +166,21 @@ def plot_sim(sim, ref_ekf, my_ekf,name=''):
     plt.figure(figsize=(7, 7))
     #colors = plt.cm.rainbow(np.linspace(0, 1, len(posX)))
     plt.scatter(sim.x, sim.y, s=2, c='gray', label="Ground Truth")
-    plt.scatter(posXRef, posYRef, s=2, c='red', label="EKF without RVE")
+    # plt.scatter(posXRef, posYRef, s=2, c='red', label="EKF without RVE")
     plt.scatter(posX, posY, s=2, c='green', label="Proposed Method")
     plt.scatter(0.,0., marker = '^', s=100, c='b', label="Anchor" )
 
 
     gray_patch = mpatches.Patch(color='gray', label="Ground truth")
-    red_patch = mpatches.Patch(color='red', label="Without speed estimator")
+    # red_patch = mpatches.Patch(color='red', label="Without speed estimator")
     green_patch = mpatches.Patch(color='green', label="With speed estimator")
-    plt.legend(handles=[gray_patch, red_patch, green_patch])
+    plt.legend(handles=[gray_patch,  green_patch])
     plt.xlabel('(m)')
     plt.ylabel('(m)')
 
     plt.axis('equal')
     plt.savefig(savePath+"%ssim_result_trajectory.svg" % name)
+    
 
 
     fig, ax1 = plt.subplots(figsize=(9, 4.5))
@@ -205,7 +207,7 @@ def plot_sim(sim, ref_ekf, my_ekf,name=''):
 
 
 
-def plot_sim_error(sim, ref_ekf, my_ekf, anchor_ekf,name='',):
+def plot_sim_error(sim, my_ekf,name='',):
 
     posXRef, posYRef, posZRef, orientationRef, pitchRef, linVelRef, posX, posY, posZ, orientation, pitch, linVel = ([] for _ in range(12))
     anchor_posX, anchor_posY, anchor_posZ, anchor_orientation, anchor_pitch, anchor_linVel = ([] for _ in range(6))
@@ -213,14 +215,14 @@ def plot_sim_error(sim, ref_ekf, my_ekf, anchor_ekf,name='',):
     errorRef = []
     errorAnchor = []
 
-    for idx in range(len(ref_ekf.ekf.recordState)):
-        posXRef.append(ref_ekf.ekf.recordState[idx][0])
-        posYRef.append(ref_ekf.ekf.recordState[idx][1])
-        posZRef.append(ref_ekf.ekf.recordState[idx][2])
-        orientationRef.append(ref_ekf.ekf.recordState[idx][3])
-        pitchRef.append(ref_ekf.ekf.recordState[idx][4])
-        linVelRef.append(ref_ekf.ekf.recordState[idx][5])
-        errorRef.append(np.linalg.norm([posXRef[idx] - sim.x[idx],posYRef[idx]-sim.y[idx], posZRef[idx]-sim.z[idx]]))
+    # for idx in range(len(ref_ekf.ekf.recordState)):
+    #     posXRef.append(ref_ekf.ekf.recordState[idx][0])
+    #     posYRef.append(ref_ekf.ekf.recordState[idx][1])
+    #     posZRef.append(ref_ekf.ekf.recordState[idx][2])
+    #     orientationRef.append(ref_ekf.ekf.recordState[idx][3])
+    #     pitchRef.append(ref_ekf.ekf.recordState[idx][4])
+    #     linVelRef.append(ref_ekf.ekf.recordState[idx][5])
+    #     errorRef.append(np.linalg.norm([posXRef[idx] - sim.x[idx],posYRef[idx]-sim.y[idx], posZRef[idx]-sim.z[idx]]))
 
     for idx in range(len(my_ekf.ekf.recordState)):
         posX.append(my_ekf.ekf.recordState[idx][0])
@@ -231,28 +233,28 @@ def plot_sim_error(sim, ref_ekf, my_ekf, anchor_ekf,name='',):
         linVel.append(my_ekf.ekf.recordState[idx][5])
         error.append(np.linalg.norm([posX[idx] - sim.x[idx],posY[idx]-sim.y[idx],posZ[idx]-sim.z[idx]]))
 
-    for idx in range(len(anchor_ekf.ekf.recordState)):
-        anchor_posX.append(anchor_ekf.ekf.recordState[idx][0])
-        anchor_posY.append(anchor_ekf.ekf.recordState[idx][1])
-        anchor_posZ.append(anchor_ekf.ekf.recordState[idx][2])
-        anchor_orientation.append(anchor_ekf.ekf.recordState[idx][3])
-        anchor_pitch.append(anchor_ekf.ekf.recordState[idx][4])
-        anchor_linVel.append(anchor_ekf.ekf.recordState[idx][5])
-        errorAnchor.append(np.linalg.norm([anchor_posX[idx] - sim.x[idx], anchor_posY[idx]-sim.y[idx],anchor_posZ[idx]-sim.z[idx]]))
+    # for idx in range(len(anchor_ekf.ekf.recordState)):
+    #     anchor_posX.append(anchor_ekf.ekf.recordState[idx][0])
+    #     anchor_posY.append(anchor_ekf.ekf.recordState[idx][1])
+    #     anchor_posZ.append(anchor_ekf.ekf.recordState[idx][2])
+    #     anchor_orientation.append(anchor_ekf.ekf.recordState[idx][3])
+    #     anchor_pitch.append(anchor_ekf.ekf.recordState[idx][4])
+    #     anchor_linVel.append(anchor_ekf.ekf.recordState[idx][5])
+    #     errorAnchor.append(np.linalg.norm([anchor_posX[idx] - sim.x[idx], anchor_posY[idx]-sim.y[idx],anchor_posZ[idx]-sim.z[idx]]))
 
     plt.figure(figsize=(10 , 5))
-    plt.plot(errorRef,color='red',  label = ' Vanilla EKF')
+    # plt.plot(errorRef,color='red',  label = ' Vanilla EKF')
     plt.plot(error, color='green', label = 'Paper Method')
-    plt.plot(errorAnchor, color='yellow', label = 'Anchor Method')
+    # plt.plot(errorAnchor, color='yellow', label = 'Anchor Method')
 
-    red_patch = mpatches.Patch(color='red', label="Without speed estimator")
+    # red_patch = mpatches.Patch(color='red', label="Without speed estimator")
     green_patch = mpatches.Patch(color='green', label="With speed estimator")
-    yellow_patch = mpatches.Patch(color='yellow', label="Handover with speed estimator")
-    plt.legend(loc='upper left', handles=[red_patch, green_patch, yellow_patch])
+    # yellow_patch = mpatches.Patch(color='yellow', label="Handover with speed estimator")
+    plt.legend(loc='upper left', handles=[ green_patch])
     plt.xlabel('Time (steps)')
     plt.ylabel('RMSE(m)')
 
-    print("RMSE With Speed Estimator", np.mean(error), "; Without", np.mean(errorRef), 'Anchor With Speed Estimator', np.mean(errorAnchor))
+    print("RMSE With Speed Estimator", np.mean(error), ";")
     plt.savefig(savePath+"%ssim_RMS.svg" % name)
     plt.savefig(savePath+"%ssim_RMS.png" % name, bbox_inches='tight', dpi=600)
 

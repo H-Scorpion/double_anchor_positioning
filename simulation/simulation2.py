@@ -10,8 +10,8 @@ from parameters import *
 import numpy as np
 import random
 if __name__ == '__main__':
-    np.random.seed(seed)
-    random.seed(seed)
+    #3np.random.seed(seed)
+    #random.seed(seed)
     #Using last time data or generate new simulation data
     if UsingLastTimeData:
         simData = readFromFile()
@@ -23,42 +23,52 @@ if __name__ == '__main__':
 
     # Create two tracker for compare
     myTrackerExp = tracker()
-    refMyTracker = tracker()
-    AnchoTracker = tracker()
+    # refMyTracker = tracker()
+    # AnchoTracker = tracker()
 
     # Set tracker mode to simulation, disable the speedEstimator of the reference tracker
-    AnchoTracker.setup_mode(IsSimulation) #red
+    # AnchoTracker.setup_mode(IsSimulation) #red
     myTrackerExp.setup_mode(IsSimulation) #green
-    speedEstimatorSwitch = False
-    refMyTracker.setup_mode(IsSimulation,speedEstimatorSwitch) #yello
+    # speedEstimatorSwitch = False
+    # refMyTracker.setup_mode(IsSimulation,speedEstimatorSwitch) #yello
 
 
     # Set covariance for the EKF
-    refMyTracker.ekf.set_covs(covS_X, covS_Y, covS_Z, covS_Ori, covS_Pitch, covS_LVel, covM_Range, covM_Ori, covM_Pitch)
+    # refMyTracker.ekf.set_covs(covS_X, covS_Y, covS_Z, covS_Ori, covS_Pitch, covS_LVel, covM_Range, covM_Ori, covM_Pitch)
     myTrackerExp.ekf.set_covs(covS_X, covS_Y, covS_Z, covS_Ori, covS_Pitch, covS_LVel, covM_Range, covM_Ori, covM_Pitch)
-    AnchoTracker.ekf.set_covs(covS_X, covS_Y, covS_Z, covS_Ori, covS_Pitch, covS_LVel, covM_Range, covM_Ori, covM_Pitch)
+    # AnchoTracker.ekf.set_covs(covS_X, covS_Y, covS_Z, covS_Ori, covS_Pitch, covS_LVel, covM_Range, covM_Ori, covM_Pitch)
 
     # Set initial state for the EKF
-    refMyTracker.ekf.set_initial_state(initialState)
+    # refMyTracker.ekf.set_initial_state(initialState)
     myTrackerExp.ekf.set_initial_state(initialState)
-    AnchoTracker.ekf.set_initial_state(initialState)
+    # print(myTrackerExp.ekf.x)
+    # AnchoTracker.ekf.set_initial_state(initialState)
 
     # Choose measurement input
-    uwbInput = simData.uwbNoisy
+    uwbInput0 = simData.uwbNoisy0
+    uwbInput1 = simData.uwbNoisy1
     yawInput = simData.yawNoisy
-    pitchInput = simData.pitchNoisy
+    # pitchInput = simData.pitchNoisy
     timeInput = simData.timestamp
 
     print("Start the Tracker")
-    for step in range(len(uwbInput)):
-        measurement = [uwbInput[step], yawInput[step], pitchInput[step], timeInput[step]]
-        refMyTracker.step(measurement)
+    for step in range(10000):#range(simData.dataSize):
+        measurement = [uwbInput0[step], uwbInput1[step], yawInput[step], timeInput[step]]
+        # print(simData.x[step],simData.y[step],simData.z[step])
+        # refMyTracker.step(measurement)
+        # print(myTrackerExp.ekf.x)
         myTrackerExp.step(measurement)
+        
+
 
     # Plot the result to result_cache folder
-    #plot_sim(simData,refMyTracker,myTrackerExp)
-    #plot_sim_error(simData,refMyTracker,myTrackerExp)
+    # plot_sim(simData,myTrackerExp)
+    # plot_sim_error(simData,myTrackerExp)
+    plot_anchor_info(simData,myTrackerExp, name='vertical_anchor_')
+    plot_sim_error(simData, myTrackerExp ,'vertical_anchor_')
+    plot_trajectory(simData,myTrackerExp, name='vertical_anchor_')
 
+    '''
     #new anchor tracking
     anchor_x = 0
     anchor_y = 0
@@ -113,3 +123,4 @@ if __name__ == '__main__':
     #                            anchor_x=record_anchor_x, anchor_y=record_anchor_y, anchor_z=record_anchor_z)
     plot_anchor_info(simData, refMyTracker,myTrackerExp, AnchoTracker,name='new_method_', record_switch_hand_step=record_switch_hand_step)
     plot_sim_error(simData,refMyTracker,myTrackerExp, AnchoTracker,'new_method_')
+    '''
